@@ -1,5 +1,5 @@
 /**
- * Copyright IBM Corporation 2016
+ * Copyright IBM Corporation 2016, 2017
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -100,12 +100,11 @@ class ConversationTests: XCTestCase {
             XCTAssertTrue(response.intents.isEmpty)
             
             // verify output
-            XCTAssertTrue((response.output.logMessages.isEmpty))
+            XCTAssertTrue(response.output.logMessages.isEmpty)
             XCTAssertEqual(response.output.text, response1)
             XCTAssertEqual(response.output.nodesVisited!, nodes1)
 
             context = response.context
-
             expectation1.fulfill()
         }
         waitForExpectations()
@@ -145,7 +144,6 @@ class ConversationTests: XCTestCase {
             XCTAssert(response.intents[0].confidence <= 1.00)
             
             // verify output
-
             XCTAssertTrue(response.output.logMessages.isEmpty)
             XCTAssertEqual(response.output.text, response2)
             XCTAssertEqual(response.output.nodesVisited!, nodes2)
@@ -166,7 +164,6 @@ class ConversationTests: XCTestCase {
         
         conversation.message(workspaceID: workspaceID, failure: failWithError) {
             response in
-
             context = response.context
             entities = response.entities
             intents = response.intents
@@ -305,7 +302,7 @@ class ConversationTests: XCTestCase {
         waitForExpectations()
     }
     
-    // MARK: Workspaces
+    // MARK: - Workspaces
     
     func testListAllWorkspaces() {
         let description = "List all workspaces."
@@ -529,7 +526,7 @@ class ConversationTests: XCTestCase {
         waitForExpectations()
     }
     
-    // MARK: Intents
+    // MARK: - Intents
     
     func testListAllIntents() {
         let description = "List all the intents in a workspace."
@@ -703,9 +700,9 @@ class ConversationTests: XCTestCase {
         }
         waitForExpectations()
     }
-    
-    // MARK: Examples
-    
+
+    // MARK: - Examples
+
     func testListAllExamples() {
         let description = "List all the examples of an intent."
         let expectation = self.expectation(description: description)
@@ -833,7 +830,7 @@ class ConversationTests: XCTestCase {
         waitForExpectations()
     }
     
-    // MARK: Counterexamples
+    // MARK: - Counterexamples
     
     func testListAllCounterexamples() {
         let description = "List all the counterexamples of a workspace."
@@ -963,12 +960,372 @@ class ConversationTests: XCTestCase {
         waitForExpectations()
     }
 
+	// MARK: - Entities
+
+	func testListAllEntities() {
+		let description = "List all entities"
+		let expectation = self.expectation(description: description)
+
+		conversation.listEntities(workspaceID: workspaceID, failure: failWithError){entities in
+			for entity in entities.entities {
+				XCTAssertNotNil(entity.entity)
+				XCTAssertNotNil(entity.created)
+				XCTAssertNotNil(entity.updated)
+			}
+			XCTAssert(entities.entities.count > 0)
+			XCTAssertNotNil(entities.pagination.refreshUrl)
+			XCTAssertNil(entities.pagination.nextUrl)
+			XCTAssertNil(entities.pagination.total)
+			XCTAssertNil(entities.pagination.matched)
+			expectation.fulfill()
+		}
+		waitForExpectations()
+	}
+
+	func testListAllEntitiesWithIncludeCount() {
+		let description = "List all the entities in a workspace with includeCount as true."
+		let expectation = self.expectation(description: description)
+
+		conversation.listEntities(workspaceID: workspaceID, includeCount: true, failure: failWithError) { entities in
+			for entity in entities.entities {
+				XCTAssertNotNil(entity.entity)
+				XCTAssertNotNil(entity.created)
+				XCTAssertNotNil(entity.updated)
+			}
+			XCTAssertNotNil(entities.pagination.refreshUrl)
+			XCTAssertNil(entities.pagination.nextUrl)
+			XCTAssertNotNil(entities.pagination.total)
+			XCTAssertNotNil(entities.pagination.matched)
+			XCTAssertEqual(entities.pagination.total, entities.entities.count)
+			expectation.fulfill()
+		}
+		waitForExpectations()
+	}
+
+	func testListAllEntitiesWithPageLimit1() {
+		let description = "List all entities with page limit 1"
+		let expectation = self.expectation(description: description)
+
+		conversation.listEntities(workspaceID: workspaceID, pageLimit: 1, failure: failWithError){entities in
+			for entity in entities.entities {
+				XCTAssertNotNil(entity.entity)
+				XCTAssertNotNil(entity.created)
+				XCTAssertNotNil(entity.updated)
+			}
+			XCTAssertNotNil(entities.pagination.refreshUrl)
+			XCTAssertNotNil(entities.pagination.nextUrl)
+			XCTAssertNil(entities.pagination.total)
+			XCTAssertNil(entities.pagination.matched)
+
+			XCTAssert(entities.entities.count > 0)
+			expectation.fulfill()
+		}
+		waitForExpectations()
+	}
+
+	func testListAllEntitiesWithExport() {
+		let description = "List all the entities in a workspace with export as true."
+		let expectation = self.expectation(description: description)
+
+		conversation.listEntities(workspaceID: workspaceID, export: true, failure: failWithError) { entities in
+			for entity in entities.entities {
+				XCTAssertNotNil(entity.entity)
+				XCTAssertNotNil(entity.created)
+				XCTAssertNotNil(entity.updated)
+			}
+			XCTAssertNotNil(entities.entities)
+			XCTAssertNil(entities.pagination.total)
+			XCTAssertNil(entities.pagination.matched)
+			XCTAssertNil(entities.pagination.nextUrl)
+			expectation.fulfill()
+		}
+		waitForExpectations()
+	}
+
+	func testCreateAndDeleteEntity(){
+		let description = "Create an Entity"
+		let expectation = self.expectation(description: description)
+
+		let newEntityName = "swift-sdk-test-entity" + UUID().uuidString
+		//let firstVal = CreateValue.init(value: "full", synonyms: ["filled"])
+		//let secondVal = CreateValue.init(value: "empty")
+		let entity = CreateEntity.init(entity: newEntityName, description: "This is a test entity")
+
+		conversation.createEntity(workspaceID: workspaceID, body: entity, failure: failWithError){ entityResponse in
+			XCTAssertEqual(entityResponse.entity, entity.entity)
+			XCTAssertEqual(entityResponse.description, entity.description)
+			XCTAssertNotNil(entityResponse.created)
+			XCTAssertNotNil(entityResponse.updated)
+			expectation.fulfill()
+		}
+		waitForExpectations()
+
+		let descriptionTwo = "Delete the entity"
+		let expectationTwo = self.expectation(description: descriptionTwo)
+
+		conversation.deleteEntity(workspaceID: workspaceID, entity: entity.entity) {_ in
+			expectationTwo.fulfill()
+		}
+		waitForExpectations()
+	}
+
+	func testCreateUpdateAndDeleteEntity(){
+		let description = "Create an Entity"
+		let expectation = self.expectation(description: description)
+
+		let newEntityName = "swift-sdk-test-entity" + UUID().uuidString
+		let entity = CreateEntity.init(entity: newEntityName, description: "This is a test entity")
+
+		conversation.createEntity(workspaceID: workspaceID, body: entity, failure: failWithError){ entityResponse in
+			XCTAssertEqual(entityResponse.entity, entity.entity)
+			XCTAssertEqual(entityResponse.description, entity.description)
+			XCTAssertNotNil(entityResponse.created)
+			XCTAssertNotNil(entityResponse.updated)
+			expectation.fulfill()
+		}
+		waitForExpectations()
+
+		let descriptionTwo = "Update the entity"
+		let expectationTwo = self.expectation(description: descriptionTwo)
+
+		let updatedEntityName = "up-" + entity.entity
+		let updatedEntityDescription = "This is a new description for a test entity"
+		let updatedEntity = UpdateEntity.init(entity: updatedEntityName, description: updatedEntityDescription)
+		conversation.updateEntity(workspaceID: workspaceID, entity: entity.entity, body: updatedEntity, failure: failWithError){ entityResponse in
+			XCTAssertEqual(entityResponse.entity, updatedEntityName)
+			XCTAssertEqual(entityResponse.description, updatedEntityDescription)
+			XCTAssertNotNil(entityResponse.created)
+			XCTAssertNotNil(entityResponse.updated)
+			expectationTwo.fulfill()
+		}
+		waitForExpectations()
+
+		let descriptionFour = "Delete the entity"
+		let expectationFour = self.expectation(description: descriptionFour)
+
+		conversation.deleteEntity(workspaceID: workspaceID, entity: updatedEntityName, failure: failWithError) {_ in
+			expectationFour.fulfill()
+		}
+		waitForExpectations()
+	}
+
+    // MARK: - Values Tests
+
+    func testListAllValues() {
+        let description = "List all the values for an entity."
+        let expectation = self.expectation(description: description)
+
+        let entityName = "appliance"
+
+        conversation.listValues(workspaceID: workspaceID, entity: entityName, failure: failWithError) { valueCollection in
+            for value in valueCollection.values {
+                XCTAssertNotNil(value.value)
+                XCTAssertNotNil(value.created)
+                XCTAssertNotNil(value.updated)
+            }
+            XCTAssertNotNil(valueCollection.pagination.refreshUrl)
+            XCTAssertNil(valueCollection.pagination.total)
+            XCTAssertNil(valueCollection.pagination.matched)
+            expectation.fulfill()
+        }
+        waitForExpectations()
+    }
+
+    func testCreateUpdateAndDeleteValue(){
+        let description = "Create a value for an entity"
+        let expectation = self.expectation(description: description)
+
+        let entityName = "appliance"
+        let valueName = "swift-sdk-test-value" + UUID().uuidString
+
+        conversation.createValue(workspaceID: workspaceID, entity: entityName, value: valueName, failure: failWithError) { value in
+            XCTAssertEqual(value.value, valueName)
+            XCTAssertNotNil(value.created)
+            XCTAssertNotNil(value.updated)
+            expectation.fulfill()
+        }
+        waitForExpectations()
+
+        let descriptionTwo = "Update the value"
+        let expectationTwo = self.expectation(description: descriptionTwo)
+
+        let updatedValueName = "up-" + valueName
+
+        conversation.updateValue(workspaceID: workspaceID, entity: entityName, value: valueName, newValue: updatedValueName, newMetadata: ["oldname": valueName], failure: failWithError) { value in
+            XCTAssertEqual(value.value, updatedValueName)
+            XCTAssertNotNil(value.created)
+            XCTAssertNotNil(value.updated)
+            XCTAssertNotNil(value.metadata)
+            expectationTwo.fulfill()
+        }
+        waitForExpectations()
+
+        let descriptionThree = "Delete the updated value"
+        let expectationThree = self.expectation(description: descriptionThree)
+
+        conversation.deleteValue(workspaceID: workspaceID, entity: entityName, value: updatedValueName, failure: failWithError) {_ in
+            expectationThree.fulfill()
+        }
+        waitForExpectations()
+    }
+
+	// MARK: - Synonym Tests
+
+	func testListAllSynonym() {
+		let description = "List all the synonyms for an entity and value."
+		let expectation = self.expectation(description: description)
+
+		conversation.listSynonyms(workspaceID: workspaceID, entity: "appliance", value: "lights", failure: failWithError) { synonyms in
+			for synonym in synonyms.synonyms {
+				XCTAssertNotNil(synonym.created)
+				XCTAssertNotNil(synonym.updated)
+				XCTAssertNotNil(synonym.synonym)
+			}
+			XCTAssertNotNil(synonyms.pagination.refreshUrl)
+			XCTAssertNil(synonyms.pagination.total)
+			XCTAssertNil(synonyms.pagination.matched)
+			expectation.fulfill()
+		}
+		waitForExpectations()
+	}
+
+	func testListAllSynonymWithIncludeCount() {
+		let description = "List all the synonyms for an entity and value with includeCount as true."
+		let expectation = self.expectation(description: description)
+
+		conversation.listSynonyms(workspaceID: workspaceID, entity: "appliance", value: "lights", includeCount: true, failure: failWithError) { synonyms in
+			for synonym in synonyms.synonyms {
+				XCTAssertNotNil(synonym.created)
+				XCTAssertNotNil(synonym.updated)
+				XCTAssertNotNil(synonym.synonym)
+			}
+			XCTAssertNotNil(synonyms.pagination.refreshUrl)
+			XCTAssertNotNil(synonyms.pagination.total)
+			XCTAssertNotNil(synonyms.pagination.matched)
+			XCTAssertEqual(synonyms.pagination.total, synonyms.synonyms.count)
+			expectation.fulfill()
+		}
+		waitForExpectations()
+	}
+
+	func testListAllSynonymWithPageLimit1() {
+		let description = "List all the synonyms for an entity and value with pageLimit specified as 1."
+		let expectation = self.expectation(description: description)
+
+		conversation.listSynonyms(workspaceID: workspaceID, entity: "appliance", value: "lights", pageLimit: 1, failure: failWithError) { synonyms in
+			XCTAssertEqual(synonyms.synonyms.count, 1)
+			for synonym in synonyms.synonyms {
+				XCTAssertNotNil(synonym.created)
+				XCTAssertNotNil(synonym.updated)
+				XCTAssertNotNil(synonym.synonym)
+			}
+			XCTAssertNotNil(synonyms.pagination.refreshUrl)
+			XCTAssertNotNil(synonyms.pagination.nextUrl)
+			XCTAssertNil(synonyms.pagination.total)
+			XCTAssertNil(synonyms.pagination.matched)
+			expectation.fulfill()
+		}
+		waitForExpectations()
+	}
+
+	func testCreateAndDeleteSynonym() {
+		let description = "Create a new synonym."
+		let expectation = self.expectation(description: description)
+
+		let newSynonym = "swift-sdk-test-synonym" + UUID().uuidString
+		conversation.createSynonym(workspaceID: workspaceID,entity: "appliance", value: "lights", synonym: newSynonym, failure: failWithError) { synonym in
+			XCTAssertNotNil(synonym.created)
+			XCTAssertNotNil(synonym.updated)
+			XCTAssertEqual(synonym.synonym, newSynonym)
+			expectation.fulfill()
+		}
+		waitForExpectations()
+
+		let description2 = "Delete the new synonym."
+		let expectation2 = self.expectation(description: description2)
+
+		conversation.deleteSynonym(workspaceID: workspaceID,entity: "appliance", value: "lights", synonym: newSynonym, failure: failWithError) {
+			expectation2.fulfill()
+		}
+		waitForExpectations()
+	}
+
+	func testGetSynonym() {
+		let description = "Get details of a specific synonym."
+		let expectation = self.expectation(description: description)
+
+		let synonymName = "headlight"
+		conversation.getSynonym(workspaceID: workspaceID,entity: "appliance", value: "lights", synonym: synonymName, failure: failWithError) { synonym in
+			XCTAssertEqual(synonym.synonym, synonymName)
+			XCTAssertNotNil(synonym.created)
+			XCTAssertNotNil(synonym.updated)
+			expectation.fulfill()
+		}
+		waitForExpectations()
+	}
+
+	func testCreateUpdateAndDeleteSynonym() {
+		let description = "Create a new synonym."
+		let expectation = self.expectation(description: description)
+
+		let newSynonym = "swift-sdk-test-synonym" + UUID().uuidString
+		conversation.createSynonym(workspaceID: workspaceID,entity: "appliance", value: "lights", synonym: newSynonym, failure: failWithError) { synonym in
+			XCTAssertNotNil(synonym.created)
+			XCTAssertNotNil(synonym.updated)
+			XCTAssertEqual(synonym.synonym, newSynonym)
+			expectation.fulfill()
+		}
+		waitForExpectations()
+
+		let description2 = "Update the new synonym."
+		let expectation2 = self.expectation(description: description2)
+
+		let updatedSynonym = "new-" + newSynonym
+		conversation.updateSynonym(workspaceID: workspaceID, entity: "appliance", value: "lights", synonym: newSynonym, newSynonym: updatedSynonym, failure: failWithError){ synonym in
+			XCTAssertNotNil(synonym.created)
+			XCTAssertNotNil(synonym.updated)
+			XCTAssertEqual(synonym.synonym, updatedSynonym)
+			expectation2.fulfill()
+		}
+		waitForExpectations()
+
+		let description3 = "Delete the new synonym."
+		let expectation3 = self.expectation(description: description3)
+
+		conversation.deleteSynonym(workspaceID: workspaceID,entity: "appliance", value: "lights", synonym: updatedSynonym, failure: failWithError) {
+			expectation3.fulfill()
+		}
+		waitForExpectations()
+	}
+
+	// MARK: - Log Tests
+	//API Problem, please uncomment when fixed
+	/*
+	func testListLogs() {
+		let description = "List the logs from the sdk"
+		let expectation = self.expectation(description: description)
+
+		conversation.listLogs(workspaceID: workspaceID, failure: failWithError) { logs in
+			for log in logs.logs {
+				XCTAssert(log.logID.characters.count > 0)
+				XCTAssert(log.requestTimestamp.characters.count > 0)
+				XCTAssert(log.responseTimestamp.characters.count > 0)
+			}
+			XCTAssertNil(logs.pagination.nextUrl)
+			XCTAssertNil(logs.pagination.matched)
+			expectation.fulfill()
+		}
+
+		waitForExpectations()
+	}
+*/
+
     // MARK: - Negative Tests
 
     func testMessageInvalidWorkspace() {
         let description = "Start a conversation with an invalid workspace."
         let expectation = self.expectation(description: description)
-        
+
         let workspaceID = "this-id-is-invalid"
         let failure = { (error: Error) in
             expectation.fulfill()
