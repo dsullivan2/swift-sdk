@@ -34,11 +34,10 @@ class ConversationTests: XCTestCase {
     
     static var allTests : [(String, (ConversationTests) -> () throws -> Void)] {
         return [
-            ("instantiateConversation", instantiateConversation),
             ("testMessage", testMessage),
             ("testMessageAllFields1", testMessageAllFields1),
             ("testMessageAllFields2", testMessageAllFields2),
-            ("testMessageInvalidWorkspace", testMessageInvalidWorkspace)
+            ("testMessageInvalidWorkspaceID", testMessageInvalidWorkspaceID)
         ]
     }
 
@@ -48,6 +47,8 @@ class ConversationTests: XCTestCase {
         let password = Credentials.ConversationPassword
         let version = "2017-05-26"
         conversation = Conversation(username: username, password: password, version: version)
+        conversation.defaultHeaders["X-Watson-Learning-Opt-Out"] = "true"
+        conversation.defaultHeaders["X-Watson-Test"] = "true"
     }
 
     /** Fail false negatives. */
@@ -1204,7 +1205,7 @@ class ConversationTests: XCTestCase {
         waitForExpectations()
     }
 
-	// MARK: - Synonym Tests
+	// MARK: - Synonyms
 
 	func testListAllSynonym() {
 		let description = "List all the synonyms for an entity and value."
@@ -1333,7 +1334,7 @@ class ConversationTests: XCTestCase {
 		waitForExpectations()
 	}
 
-	// MARK: - Log Tests
+	// MARK: - Logs
 
 	func testListLogs() {
 		let description = "List the logs from the sdk"
@@ -1349,15 +1350,30 @@ class ConversationTests: XCTestCase {
 
     // MARK: - Negative Tests
 
-    func testMessageInvalidWorkspace() {
+    func testMessageUnknownWorkspace() {
         let description = "Start a conversation with an invalid workspace."
         let expectation = self.expectation(description: description)
 
-        let workspaceID = "this-id-is-invalid"
+        let workspaceID = "this-id-is-unknown"
         let failure = { (error: Error) in
+            XCTAssert(error.localizedDescription.contains("workspaceid parameter is not a valid GUID"))
             expectation.fulfill()
         }
         
+        conversation.message(withWorkspace: workspaceID, failure: failure, success: failWithResult)
+        waitForExpectations()
+    }
+
+    func testMessageInvalidWorkspaceID() {
+        let description = "Start a conversation with an invalid workspace."
+        let expectation = self.expectation(description: description)
+
+        let workspaceID = "this id is invalid"   // workspace id with spaces should gracefully return error
+        let failure = { (error: Error) in
+            XCTAssert(error.localizedDescription.contains("workspaceid parameter is not a valid GUID"))
+            expectation.fulfill()
+        }
+
         conversation.message(withWorkspace: workspaceID, failure: failure, success: failWithResult)
         waitForExpectations()
     }
